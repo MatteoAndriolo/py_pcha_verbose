@@ -46,12 +46,37 @@ def PCHA(X, noc, I=None, U=None, delta=0, verbose=False, conv_crit=1E-6, maxiter
 
     varexlp : float
         Percent variation explained by the model
+
+    iterations : int
+        Number of main loop iterations completed
+
+    nSup : int
+        Total number of times S learning rate increased (SSE improved)
+
+    nSdown : int
+        Total number of times S learning rate decreased (SSE did not improve)
+
+    nCup : int
+        Total number of times C learning rate increased (SSE improved)
+
+    nCdown : int
+        Total number of times C learning rate decreased (SSE did not improve)
+
+    iters_s : int
+        Total number of S update iterations
+
+    iters_c : int
+        Total number of C update iterations
     """
     def S_update(S, XCtX, CtXtXC, muS, SST, SSE, niter):
         """Update S for one iteration of the algorithm."""
         noc, J = S.shape
         e = np.ones((noc, 1))
+        nSup = 0
+        nSdown = 0
+        iters_s = 0
         for k in range(niter):
+            iters_s += 1
             SSE_old = SSE
             g = (np.dot(CtXtXC, S) - XCtX) / (SST / J)
             g = g - e * np.sum(g.A * S.A, axis=0)
@@ -64,11 +89,13 @@ def PCHA(X, noc, I=None, U=None, delta=0, verbose=False, conv_crit=1E-6, maxiter
                 SSE = SST - 2 * np.sum(XCtX.A * S.A) + np.sum(CtXtXC.A * SSt.A)
                 if SSE <= SSE_old * (1 + 1e-9):
                     muS = muS * 1.2
+                    nSup += 1
                     break
                 else:
                     muS = muS / 2
+                    nSdown += 1
 
-        return S, SSE, muS, SSt
+        return S, SSE, muS, SSt, nSup, nSdown, iters_s
 
     def C_update(X, XSt, XC, SSt, C, delta, muC, mualpha, SST, SSE, niter=1):
         """Update C for one iteration of the algorithm."""
@@ -80,8 +107,12 @@ def PCHA(X, noc, I=None, U=None, delta=0, verbose=False, conv_crit=1E-6, maxiter
 
         e = np.ones((J, 1))
         XtXSt = np.dot(X.T, XSt)
+        nCup = 0
+        nCdown = 0
+        iters_c = 0
 
         for k in range(niter):
+            iters_c += 1
 
             # Update C
             SSE_old = SSE
@@ -108,9 +139,11 @@ def PCHA(X, noc, I=None, U=None, delta=0, verbose=False, conv_crit=1E-6, maxiter
 
                 if SSE <= SSE_old * (1 + 1e-9):
                     muC = muC * 1.2
+                    nCup += 1
                     break
                 else:
                     muC = muC / 2
+                    nCdown += 1
 
             # Update alphaC
             SSE_old = SSE
@@ -136,7 +169,7 @@ def PCHA(X, noc, I=None, U=None, delta=0, verbose=False, conv_crit=1E-6, maxiter
         if delta != 0:
             C = C * np.diag(alphaC)
 
-        return C, SSE, muC, mualpha, CtXtXC, XC
+        return C, SSE, muC, mualpha, CtXtXC, XC, nCup, nCdown, iters_c
 
     N, M = X.shape
     
@@ -169,7 +202,15 @@ def PCHA(X, noc, I=None, U=None, delta=0, verbose=False, conv_crit=1E-6, maxiter
     S = S / np.dot(np.ones((noc, 1)), np.mat(np.sum(S, axis=0)))
     SSt = np.dot(S, S.T)
     SSE = SST - 2 * np.sum(XCtX.A * S.A) + np.sum(CtXtXC.A * SSt.A)
-    S, SSE, muS, SSt = S_update(S, XCtX, CtXtXC, muS, SST, SSE, 25)
+    S, SSE, muS, SSt, nSup_init, nSdown_init, iters_s_init = S_update(S, XCtX, CtXtXC, muS, SST, SSE, 25)
+    
+    # Initialize counters for tracking
+    nSup = nSup_init
+    nSdown = nSdown_init
+    nCup = 0
+    nCdown = 0
+    iters_s = iters_s_init
+    iters_c = 0
 
     # Set PCHA parameters
     iter_ = 0
@@ -196,15 +237,21 @@ def PCHA(X, noc, I=None, U=None, delta=0, verbose=False, conv_crit=1E-6, maxiter
 
         # C (and alpha) update
         XSt = np.dot(X[:, U], S.T)
-        C, SSE, muC, mualpha, CtXtXC, XC = C_update(
+        C, SSE, muC, mualpha, CtXtXC, XC, this_nCup, this_nCdown, this_iters_c = C_update(
             X[:, I], XSt, XC, SSt, C, delta, muC, mualpha, SST, SSE, 10
         )
+        nCup += this_nCup
+        nCdown += this_nCdown
+        iters_c += this_iters_c
 
         # S update
         XCtX = np.dot(XC.T, X[:, U])
-        S, SSE, muS, SSt = S_update(
+        S, SSE, muS, SSt, this_nSup, this_nSdown, this_iters_s = S_update(
             S, XCtX, CtXtXC, muS, SST, SSE, 10
         )
+        nSup += this_nSup
+        nSdown += this_nSdown
+        iters_s += this_iters_s
 
         # Evaluate and display iteration
         dSSE = SSE_old - SSE
@@ -230,4 +277,4 @@ def PCHA(X, noc, I=None, U=None, delta=0, verbose=False, conv_crit=1E-6, maxiter
     C = C[:, ind]
     XC = XC[:, ind]
 
-    return XC, S, C, SSE, varexpl
+    return XC, S, C, SSE, varexpl, iter_, nSup, nSdown, nCup, nCdown, iters_s, iters_c
