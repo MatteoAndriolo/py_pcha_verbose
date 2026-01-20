@@ -166,7 +166,7 @@ def PCHA(X, noc, I=None, U=None, delta=0, verbose=False, conv_crit=1E-6, maxiter
     XCtX = np.dot(XC.T, X[:, U])
     CtXtXC = np.dot(XC.T, XC)
     S = -np.log(np.random.random((noc, len(U))))
-    S = S / np.dot(np.ones((noc, 1)), np.mat(np.sum(S, axis=0)))
+    S = S / np.dot(np.ones((noc, 1)), np.asmatrix(np.sum(S, axis=0)))
     SSt = np.dot(S, S.T)
     SSE = SST - 2 * np.sum(XCtX.A * S.A) + np.sum(CtXtXC.A * SSt.A)
     S, SSE, muS, SSt = S_update(S, XCtX, CtXtXC, muS, SST, SSE, 25)

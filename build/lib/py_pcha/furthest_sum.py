@@ -62,7 +62,7 @@ def furthest_sum(K, noc, i, exclude=[]):
             K = np.dot(Kt.T, Kt)
             K = np.lib.scimath.sqrt(
                 repmat(np.diag(K), J, 1) - 2 * K + \
-                repmat(np.mat(np.diag(K)).T, 1, J)
+                repmat(np.asmatrix(np.diag(K)).T, 1, J)
             )
 
         Kt2 = np.diag(K)  # Horizontal

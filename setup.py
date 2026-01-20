@@ -14,6 +14,10 @@ setup(
     license='MIT',
     packages=['py_pcha'],
     zip_safe=False,
+    install_requires=[
+        'numpy>=2.3.5',
+        'scipy>=1.17.0',
+    ],
     keywords = ['Archetypal Analysis', 'AA', 'PCHA', 'Clustering', 'Machine Learning', 'Signal Processing'],
     classifiers=[
         'Intended Audience :: Science/Research',
