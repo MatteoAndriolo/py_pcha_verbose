@@ -5,7 +5,7 @@ from scipy.sparse import csr_matrix
 from datetime import datetime as dt
 import time
 
-from py_pcha.furthest_sum import furthest_sum
+from .furthest_sum import furthest_sum
 
 
 def PCHA(X, noc, I=None, U=None, delta=0, verbose=False, conv_crit=1E-6, maxiter=500):
