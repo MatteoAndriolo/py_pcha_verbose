@@ -25,7 +25,7 @@ $ easy_install py_pcha
 
 ```python
 import numpy as np
-from py_pcha import PCHA
+from py_pcha_verbose import PCHA
 
 dimensions = 15
 examples = 100

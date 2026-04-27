@@ -4,7 +4,7 @@ with open("README.md") as fp:
 	long_description = fp.read()
 
 setup(
-    name='py_pcha',
+    name='py_pcha_verbose',
     version='0.1.3',
     description='Python implemenation of PCHA algorithm for Archetypal Analysis',
     url='https://github.com/ulfaslak/py_pcha',
@@ -12,7 +12,10 @@ setup(
     author='Ulf Aslak',
     author_email='ulfjensen@gmail.com',
     license='MIT',
-    packages=['py_pcha'],
+    # Expose the package as `py_pcha_verbose`, sourcing code from the vendored
+    # `py_pcha` directory.
+    packages=['py_pcha_verbose'],
+    package_dir={'py_pcha_verbose': 'py_pcha'},
     zip_safe=False,
     install_requires=[
         'numpy>=2.3.5',

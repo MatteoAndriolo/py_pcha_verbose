@@ -8,12 +8,16 @@ import time
 from .furthest_sum import furthest_sum
 
 
-def PCHA(X, noc, I=None, U=None, delta=0, verbose=False, conv_crit=1E-6, maxiter=500):
+def PCHA(X, noc, I=None, U=None, delta=0, verbose=False, conv_crit=1e-6, maxiter=500, var_crit=0.9999):
     """Return archetypes of dataset.
 
     Note: Commonly data is formatted to have shape (examples, dimensions).
     This function takes input and returns output of the transposed shape,
     (dimensions, examples).
+
+    Convergence (aligned with C++/R archetypal backends):
+    - conv_crit: outer loop stop when |delta_SSE| < conv_crit * |SSE| (same role as delta_convergence).
+    - var_crit: stop when variance explained >= var_crit.
 
     Parameters
     ----------
@@ -28,6 +32,12 @@ def PCHA(X, noc, I=None, U=None, delta=0, verbose=False, conv_crit=1E-6, maxiter
 
     U : 1d-array
         Entries of X to model in S (optional)
+
+    conv_crit : float
+        Outer convergence threshold (delta_SSE/SSE); default 1e-6 to match delta_convergence.
+
+    var_crit : float
+        Stop when variance explained >= var_crit; default 0.9999.
 
 
     Output
@@ -179,16 +189,21 @@ def PCHA(X, noc, I=None, U=None, delta=0, verbose=False, conv_crit=1E-6, maxiter
     if U is None:
         U = range(M)
 
-    SST = np.sum(X[:, U] * X[:, U])
+    # Element-wise sum of squares (avoid matrix * which is matmul for np.matrix)
+    SST = np.sum(np.asarray(X[:, U]) ** 2)
 
     # Initialize C
     try:
-        i = furthest_sum(X[:, I], noc, [np.random.choice(np.array(I))])
+        if len(I) < noc:
+            i = furthest_sum(X[:, I], noc, [np.random.choice(np.array(I))])
+        else:
+            # Row indices must be positions in the dictionary (0..len(I)-1), not values from I
+            i = np.arange(noc)
     except IndexError:
         class InitializationException(Exception): pass
         raise InitializationException("Initialization does not converge. Too few examples in dataset.")
 
-    j = range(noc)
+    j = np.arange(noc)
     C = csr_matrix((np.ones(len(i)), (i, j)), shape=(len(I), noc)).todense()
 
     XC = np.dot(X[:, I], C)
@@ -226,7 +241,7 @@ def PCHA(X, noc, I=None, U=None, delta=0, verbose=False, conv_crit=1E-6, maxiter
     dheader = '%10s | %10s | %10s | %10s | %10s | %10s | %10s | %10s' % ('Iteration', 'Expl. var.', 'Cost func.', 'Delta SSEf.', 'muC', 'mualpha', 'muS', ' Time(s)   ')
     dline = '-----------+------------+------------+-------------+------------+------------+------------+------------+'
 
-    while np.abs(dSSE) >= conv_crit * np.abs(SSE) and iter_ < maxiter and varexpl < 0.9999:
+    while np.abs(dSSE) >= conv_crit * np.abs(SSE) and iter_ < maxiter and varexpl < var_crit:
         if verbose and iter_ % 100 == 0:
             print(dline)
             print(dheader)
